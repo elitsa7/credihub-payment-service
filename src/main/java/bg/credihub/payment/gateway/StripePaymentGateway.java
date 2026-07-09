@@ -1,0 +1,44 @@
+package bg.credihub.payment.gateway;
+
+import bg.credihub.payment.models.dto.CheckoutSessionResponse;
+import com.stripe.exception.StripeException;
+import com.stripe.model.checkout.Session;
+import com.stripe.param.checkout.SessionCreateParams;
+import org.springframework.beans.factory.annotation.Value;
+
+import java.math.BigDecimal;
+import java.util.UUID;
+
+public class StripePaymentGateway implements PaymentGateway {
+    @Value("${app.base-url}")
+    private String baseUrl;
+
+    @Override
+    public CheckoutSessionResponse createCheckoutSession(UUID paymentId, BigDecimal amount) throws StripeException {
+
+        SessionCreateParams params = SessionCreateParams.builder()
+                .setMode(SessionCreateParams.Mode.PAYMENT)
+                .setSuccessUrl(baseUrl + "/payments/success?session_id={CHECKOUT_SESSION_ID}")
+                .setCancelUrl(baseUrl + "payments/cancel")
+                .putMetadata("paymentId", paymentId.toString())
+                .addLineItem(SessionCreateParams.LineItem.builder()
+                        .setQuantity(1L)
+                        .setPriceData(SessionCreateParams.LineItem.PriceData.builder()
+                                .setCurrency("eur")
+                                .setUnitAmount(amount.multiply(BigDecimal.valueOf(100)).longValue())
+                                .setProductData(SessionCreateParams.LineItem.PriceData.ProductData.builder()
+                                        .setName("Loan installment")
+                                        .setDescription("Loan installment payment.")
+                                        .build())
+                                .build())
+                        .build())
+                .build();
+
+        Session session = Session.create(params);
+
+        return CheckoutSessionResponse.builder()
+                .sessionId(session.getId())
+                .checkoutUrl(session.getUrl())
+                .build();
+    }
+}
