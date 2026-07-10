@@ -5,10 +5,11 @@ import com.stripe.exception.StripeException;
 import com.stripe.model.checkout.Session;
 import com.stripe.param.checkout.SessionCreateParams;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.util.UUID;
-
+@Component
 public class StripePaymentGateway implements PaymentGateway {
     @Value("${app.base-url}")
     private String baseUrl;

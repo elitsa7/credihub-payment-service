@@ -32,6 +32,8 @@ public class Payment {
     @Enumerated(EnumType.STRING)
     private PaymentStatus status;
     private LocalDateTime paidAt;
+    @Column(nullable = false)
+    private LocalDateTime createdAt;
     private String transactionReference;
     @Column(unique = true)
     private String stripeSessionId;
