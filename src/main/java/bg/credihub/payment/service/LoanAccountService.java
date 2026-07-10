@@ -1,7 +1,8 @@
 package bg.credihub.payment.service;
 
 import bg.credihub.payment.exceptions.LoanAlreadyExistsException;
-import bg.credihub.payment.models.dto.CreateLoanRequest;
+import bg.credihub.payment.models.dto.LoanAccountRequest;
+import bg.credihub.payment.models.dto.LoanAccountResponse;
 import bg.credihub.payment.models.entity.Installment;
 import bg.credihub.payment.models.entity.LoanAccount;
 import bg.credihub.payment.models.enums.InstallmentStatus;
@@ -10,6 +11,8 @@ import bg.credihub.payment.repository.InstallmentRepository;
 import bg.credihub.payment.repository.LoanAccountRepository;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,7 +27,7 @@ public class LoanAccountService {
         this.installmentRepository = installmentRepository;
     }
 
-    public void createLoan(CreateLoanRequest request) {
+    public LoanAccountResponse createLoan(LoanAccountRequest request) {
         validateRequest(request);
 
         LoanAccount loanAccount = createLoanAccount(request);
@@ -34,21 +37,29 @@ public class LoanAccountService {
         List<Installment> installments = generateInstallments(loanAccount);
 
         installmentRepository.saveAll(installments);
+
+        return LoanAccountResponse.builder().loanAccountId(loanAccount.getId()).build();
     }
 
-    private LoanAccount createLoanAccount(CreateLoanRequest request) {
+    private LoanAccount createLoanAccount(LoanAccountRequest request) {
+        BigDecimal monthlyPayment = calculateMonthlyPayment(request.getPrincipalAmount(), request.getPeriodMonths());
+
         return LoanAccount.builder()
                 .applicationId(request.getApplicationId())
                 .userId(request.getUserId())
                 .principalAmount(request.getPrincipalAmount())
-                .remainingPrincipal(request.getPrincipalAmount())
+                .remainingBalance(request.getPrincipalAmount())
                 .annualInterestRate(request.getAnnualInterestRate())
-                .monthlyPayment(request.getMonthlyPayment())
+                .monthlyPayment(monthlyPayment)
                 .periodMonths(request.getPeriodMonths())
                 .paidInstallments(0)
                 .status(LoanStatus.ACTIVE)
                 .startDate(request.getStartDate())
                 .build();
+    }
+
+    private BigDecimal calculateMonthlyPayment(BigDecimal principalAmount, Integer periodMonths) {
+        return principalAmount.divide(BigDecimal.valueOf(periodMonths), 2, RoundingMode.HALF_UP);
     }
 
     private List<Installment> generateInstallments(LoanAccount loanAccount) {
@@ -71,7 +82,7 @@ public class LoanAccountService {
         return installments;
     }
 
-    private void validateRequest(CreateLoanRequest request) {
+    private void validateRequest(LoanAccountRequest request) {
         if (loanAccountRepository.existsByApplicationId(request.getApplicationId())) {
             throw new LoanAlreadyExistsException("Loan already exists for this application.");
         }

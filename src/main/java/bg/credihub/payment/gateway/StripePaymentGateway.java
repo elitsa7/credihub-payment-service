@@ -11,16 +11,16 @@ import java.math.BigDecimal;
 import java.util.UUID;
 @Component
 public class StripePaymentGateway implements PaymentGateway {
-    @Value("${app.base-url}")
-    private String baseUrl;
+    @Value("${credihub.base-url}")
+    private String credihubBaseUrl;
 
     @Override
     public CheckoutSessionResponse createCheckoutSession(UUID paymentId, BigDecimal amount) throws StripeException {
 
         SessionCreateParams params = SessionCreateParams.builder()
                 .setMode(SessionCreateParams.Mode.PAYMENT)
-                .setSuccessUrl(baseUrl + "/payments/success?session_id={CHECKOUT_SESSION_ID}")
-                .setCancelUrl(baseUrl + "payments/cancel")
+                .setSuccessUrl(credihubBaseUrl + "/payments/success?session_id={CHECKOUT_SESSION_ID}")
+                .setCancelUrl(credihubBaseUrl + "/payments/cancel")
                 .putMetadata("paymentId", paymentId.toString())
                 .addLineItem(SessionCreateParams.LineItem.builder()
                         .setQuantity(1L)

@@ -22,4 +22,12 @@ public class PaymentController {
         CheckoutSessionResponse response = paymentService.createCheckoutSession(installmentId);
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("webhook")
+    public ResponseEntity<Void> handleWebhook(@RequestBody String payload,
+                                              @RequestHeader("Stripe-Signature") String signature) throws Exception {
+
+        paymentService.completePayment(payload, signature);
+        return ResponseEntity.ok().build();
+    }
 }

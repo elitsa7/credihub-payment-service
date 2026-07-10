@@ -29,7 +29,7 @@ public class LoanAccount {
     @Column(nullable = false)
     private BigDecimal principalAmount;
     @Column(nullable = false)
-    private BigDecimal remainingPrincipal;
+    private BigDecimal remainingBalance;
     @Column(nullable = false)
     private BigDecimal annualInterestRate;
     @Column(nullable = false)
