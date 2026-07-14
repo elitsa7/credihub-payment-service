@@ -1,32 +1,38 @@
 package bg.credihub.payment.service;
 
 import bg.credihub.payment.exceptions.LoanAlreadyExistsException;
-import bg.credihub.payment.models.dto.LoanAccountRequest;
-import bg.credihub.payment.models.dto.LoanAccountResponse;
-import bg.credihub.payment.models.entity.Installment;
-import bg.credihub.payment.models.entity.LoanAccount;
+import bg.credihub.payment.mapper.LoanAccountMapper;
+import bg.credihub.payment.models.dtos.LoanAccountRequest;
+import bg.credihub.payment.models.dtos.LoanAccountResponse;
+import bg.credihub.payment.models.entities.Installment;
+import bg.credihub.payment.models.entities.LoanAccount;
 import bg.credihub.payment.models.enums.InstallmentStatus;
 import bg.credihub.payment.models.enums.LoanStatus;
 import bg.credihub.payment.repository.InstallmentRepository;
 import bg.credihub.payment.repository.LoanAccountRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class LoanAccountService {
     private final LoanAccountRepository loanAccountRepository;
     private final InstallmentRepository installmentRepository;
+    private final LoanAccountMapper loanAccountMapper;
 
-    public LoanAccountService(LoanAccountRepository loanAccountRepository, InstallmentRepository installmentRepository) {
+    public LoanAccountService(LoanAccountRepository loanAccountRepository, InstallmentRepository installmentRepository, LoanAccountMapper loanAccountMapper) {
         this.loanAccountRepository = loanAccountRepository;
         this.installmentRepository = installmentRepository;
+        this.loanAccountMapper = loanAccountMapper;
     }
 
+    @Transactional
     public LoanAccountResponse createLoan(LoanAccountRequest request) {
         validateRequest(request);
 
@@ -38,28 +44,23 @@ public class LoanAccountService {
 
         installmentRepository.saveAll(installments);
 
-        return LoanAccountResponse.builder().loanAccountId(loanAccount.getId()).build();
+        return LoanAccountResponse.builder().id(loanAccount.getId()).build();
     }
 
     private LoanAccount createLoanAccount(LoanAccountRequest request) {
-        BigDecimal monthlyPayment = calculateMonthlyPayment(request.getPrincipalAmount(), request.getPeriodMonths());
-
         return LoanAccount.builder()
                 .applicationId(request.getApplicationId())
                 .userId(request.getUserId())
                 .principalAmount(request.getPrincipalAmount())
                 .remainingBalance(request.getPrincipalAmount())
                 .annualInterestRate(request.getAnnualInterestRate())
-                .monthlyPayment(monthlyPayment)
+                .monthlyPayment(request.getMonthlyPayment())
                 .periodMonths(request.getPeriodMonths())
                 .paidInstallments(0)
                 .status(LoanStatus.ACTIVE)
                 .startDate(request.getStartDate())
+                .endDate(request.getStartDate().plusMonths(request.getPeriodMonths()))
                 .build();
-    }
-
-    private BigDecimal calculateMonthlyPayment(BigDecimal principalAmount, Integer periodMonths) {
-        return principalAmount.divide(BigDecimal.valueOf(periodMonths), 2, RoundingMode.HALF_UP);
     }
 
     private List<Installment> generateInstallments(LoanAccount loanAccount) {
@@ -80,6 +81,13 @@ public class LoanAccountService {
             dueDate = dueDate.plusMonths(1);
         }
         return installments;
+    }
+
+    public List<LoanAccountResponse> getUserLoans(UUID userId) {
+        return loanAccountRepository.findByUserId(userId)
+                .stream()
+                .map(loanAccountMapper::toLoanAccountResponse)
+                .toList();
     }
 
     private void validateRequest(LoanAccountRequest request) {

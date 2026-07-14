@@ -1,4 +1,4 @@
-package bg.credihub.payment.models.dto;
+package bg.credihub.payment.models.dtos;
 
 import lombok.Builder;
 import lombok.Getter;

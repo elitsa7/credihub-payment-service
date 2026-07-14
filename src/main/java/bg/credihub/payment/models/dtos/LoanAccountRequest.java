@@ -1,4 +1,4 @@
-package bg.credihub.payment.models.dto;
+package bg.credihub.payment.models.dtos;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -25,6 +25,8 @@ public class LoanAccountRequest {
     @NotNull
     @Positive
     private BigDecimal annualInterestRate;
+    @NotNull
+    private BigDecimal monthlyPayment;
     @NotNull
     @Min(1)
     private Integer periodMonths;

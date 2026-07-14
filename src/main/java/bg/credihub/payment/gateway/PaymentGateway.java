@@ -1,6 +1,6 @@
 package bg.credihub.payment.gateway;
 
-import bg.credihub.payment.models.dto.CheckoutSessionResponse;
+import bg.credihub.payment.models.dtos.CheckoutSessionResponse;
 import com.stripe.exception.StripeException;
 
 import java.math.BigDecimal;

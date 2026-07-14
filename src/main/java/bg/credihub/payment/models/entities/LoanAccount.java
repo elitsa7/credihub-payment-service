@@ -1,4 +1,4 @@
-package bg.credihub.payment.models.entity;
+package bg.credihub.payment.models.entities;
 
 import bg.credihub.payment.models.enums.LoanStatus;
 import jakarta.persistence.*;
@@ -46,6 +46,7 @@ public class LoanAccount {
     @Column(nullable = false)
     private LocalDate endDate;
     @OneToMany(mappedBy = "loanAccount", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("installmentNumber ASC")
     private List<Installment> installments = new ArrayList<>();
 
 }

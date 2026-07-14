@@ -1,6 +1,6 @@
 package bg.credihub.payment.web;
 
-import bg.credihub.payment.models.dto.CheckoutSessionResponse;
+import bg.credihub.payment.models.dtos.CheckoutSessionResponse;
 import bg.credihub.payment.service.PaymentService;
 import com.stripe.exception.StripeException;
 import org.springframework.http.ResponseEntity;

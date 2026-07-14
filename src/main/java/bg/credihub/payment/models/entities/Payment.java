@@ -1,4 +1,4 @@
-package bg.credihub.payment.models.entity;
+package bg.credihub.payment.models.entities;
 
 import bg.credihub.payment.models.enums.PaymentMethod;
 import bg.credihub.payment.models.enums.PaymentStatus;

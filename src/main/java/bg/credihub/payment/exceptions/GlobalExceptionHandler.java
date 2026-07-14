@@ -1,6 +1,6 @@
 package bg.credihub.payment.exceptions;
 
-import bg.credihub.payment.models.dto.ErrorResponse;
+import bg.credihub.payment.models.dtos.ErrorResponse;
 import com.stripe.exception.StripeException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
