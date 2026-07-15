@@ -1,9 +1,6 @@
 package bg.credihub.payment.service;
 
-import bg.credihub.payment.exceptions.InstallmentAlreadyPaidException;
-import bg.credihub.payment.exceptions.InstallmentNotFoundException;
-import bg.credihub.payment.exceptions.MissingMetaDataException;
-import bg.credihub.payment.exceptions.PendingPaymentAlreadyExistsException;
+import bg.credihub.payment.exceptions.*;
 import bg.credihub.payment.gateway.PaymentGateway;
 import bg.credihub.payment.models.dtos.CheckoutSessionResponse;
 import bg.credihub.payment.models.entities.Installment;
@@ -14,6 +11,7 @@ import bg.credihub.payment.models.enums.LoanStatus;
 import bg.credihub.payment.models.enums.PaymentMethod;
 import bg.credihub.payment.models.enums.PaymentStatus;
 import bg.credihub.payment.repository.InstallmentRepository;
+import bg.credihub.payment.repository.LoanAccountRepository;
 import bg.credihub.payment.repository.PaymentRepository;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.exception.StripeException;
@@ -32,14 +30,16 @@ import java.util.UUID;
 public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final InstallmentRepository installmentRepository;
+    private final LoanAccountRepository loanAccountRepository;
     private final PaymentGateway paymentGateway;
 
     @Value("${stripe.webhook.secret}")
     private String webhookSecret;
 
-    public PaymentService(PaymentRepository paymentRepository, InstallmentRepository installmentRepository, PaymentGateway paymentGateway) {
+    public PaymentService(PaymentRepository paymentRepository, InstallmentRepository installmentRepository, LoanAccountRepository loanAccountRepository, PaymentGateway paymentGateway) {
         this.paymentRepository = paymentRepository;
         this.installmentRepository = installmentRepository;
+        this.loanAccountRepository = loanAccountRepository;
         this.paymentGateway = paymentGateway;
     }
 
@@ -48,6 +48,7 @@ public class PaymentService {
                 .orElseThrow(() -> new InstallmentNotFoundException("Installment not found."));
 
         validateInstallment(installment);
+        validatePayable(installment);
 
         Payment payment = createPendingPayment(installment);
 
@@ -82,7 +83,7 @@ public class PaymentService {
 
         Payment payment = paymentRepository.findById(paymentId).orElseThrow();
 
-        if(payment.getStatus() == PaymentStatus.SUCCESS){
+        if (payment.getStatus() == PaymentStatus.SUCCESS) {
             return;
         }
 
@@ -93,6 +94,9 @@ public class PaymentService {
 
         Installment installment = payment.getInstallment();
         installment.setStatus(InstallmentStatus.PAID);
+        installment.setPaidAt(LocalDateTime.now());
+
+        installmentRepository.save(installment);
 
         LoanAccount loanAccount = installment.getLoanAccount();
 
@@ -100,10 +104,11 @@ public class PaymentService {
 
         loanAccount.setRemainingBalance(loanAccount.getRemainingBalance().subtract(payment.getAmount()));
 
-        if(loanAccount.getPaidInstallments().equals(loanAccount.getPeriodMonths())){
+        if (loanAccount.getPaidInstallments().equals(loanAccount.getPeriodMonths())) {
             loanAccount.setStatus(LoanStatus.CLOSED);
         }
 
+        loanAccountRepository.save(loanAccount);
     }
 
     private void validateInstallment(Installment installment) {
@@ -113,6 +118,16 @@ public class PaymentService {
 
         if (paymentRepository.existsByInstallment_IdAndStatus(installment.getId(), PaymentStatus.PENDING)) {
             throw new PendingPaymentAlreadyExistsException("There is already a pending payment for this installment.");
+        }
+    }
+
+    private void validatePayable(Installment installment) {
+        Installment firstPending = installmentRepository.findFirstByLoanAccountIdAndStatusOrderByInstallmentNumberAsc(
+                installment.getLoanAccount().getId(),
+                InstallmentStatus.PENDING).orElseThrow(() -> new InvalidPaymentException("No pending installments."));
+
+        if (!firstPending.getId().equals(installment.getId())) {
+            throw new InvalidPaymentException("This installment cannot be paid yet.");
         }
     }
 

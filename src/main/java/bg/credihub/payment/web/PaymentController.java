@@ -23,7 +23,7 @@ public class PaymentController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("webhook")
+    @PostMapping("/webhook")
     public ResponseEntity<Void> handleWebhook(@RequestBody String payload,
                                               @RequestHeader("Stripe-Signature") String signature) throws Exception {
 
