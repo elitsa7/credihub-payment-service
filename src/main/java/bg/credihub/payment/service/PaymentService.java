@@ -13,9 +13,11 @@ import bg.credihub.payment.models.enums.PaymentStatus;
 import bg.credihub.payment.repository.InstallmentRepository;
 import bg.credihub.payment.repository.LoanAccountRepository;
 import bg.credihub.payment.repository.PaymentRepository;
+import com.stripe.exception.EventDataObjectDeserializationException;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.exception.StripeException;
 import com.stripe.model.Event;
+import com.stripe.model.EventDataObjectDeserializer;
 import com.stripe.model.checkout.Session;
 import com.stripe.net.Webhook;
 import org.springframework.beans.factory.annotation.Value;
@@ -64,14 +66,18 @@ public class PaymentService {
         return response;
     }
 
-    public void completePayment(String payload, String signature) throws SignatureVerificationException {
+    public void completePayment(String payload, String signature)
+            throws SignatureVerificationException, EventDataObjectDeserializationException {
+
         Event event = Webhook.constructEvent(payload, signature, webhookSecret);
 
         if (!"checkout.session.completed".equals(event.getType())) {
             return;
         }
 
-        Session session = (Session) event.getDataObjectDeserializer().getObject().orElseThrow();
+        EventDataObjectDeserializer deserializer = event.getDataObjectDeserializer();
+
+        Session session = (Session) deserializer.deserializeUnsafe();
 
         String paymentIdValue = session.getMetadata().get("paymentId");
 
@@ -81,7 +87,8 @@ public class PaymentService {
 
         UUID paymentId = UUID.fromString(paymentIdValue);
 
-        Payment payment = paymentRepository.findById(paymentId).orElseThrow();
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new RuntimeException("Payment not found: " + paymentId));
 
         if (payment.getStatus() == PaymentStatus.SUCCESS) {
             return;
@@ -95,14 +102,13 @@ public class PaymentService {
         Installment installment = payment.getInstallment();
         installment.setStatus(InstallmentStatus.PAID);
         installment.setPaidAt(LocalDateTime.now());
-
         installmentRepository.save(installment);
 
         LoanAccount loanAccount = installment.getLoanAccount();
-
         loanAccount.setPaidInstallments(loanAccount.getPaidInstallments() + 1);
-
-        loanAccount.setRemainingBalance(loanAccount.getRemainingBalance().subtract(payment.getAmount()));
+        loanAccount.setRemainingBalance(
+                loanAccount.getRemainingBalance().subtract(payment.getAmount())
+        );
 
         if (loanAccount.getPaidInstallments().equals(loanAccount.getPeriodMonths())) {
             loanAccount.setStatus(LoanStatus.CLOSED);
