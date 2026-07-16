@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.util.UUID;
 @Component
-@Profile({"prod", "test"})
+@Profile({"prod"})
 public class StripePaymentGateway implements PaymentGateway {
     @Value("${credihub.base-url}")
     private String credihubBaseUrl;
