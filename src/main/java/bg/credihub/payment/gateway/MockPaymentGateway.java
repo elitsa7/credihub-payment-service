@@ -10,7 +10,7 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 @Component
-@Profile("dev")
+@Profile({"dev", "test"})
 public class MockPaymentGateway implements PaymentGateway{
     @Override
     public CheckoutSessionResponse createCheckoutSession(UUID paymentId, BigDecimal amount) throws StripeException {
