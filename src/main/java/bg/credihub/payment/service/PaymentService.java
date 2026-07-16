@@ -46,22 +46,23 @@ public class PaymentService {
     }
 
     public CheckoutSessionResponse createCheckoutSession(UUID installmentId) throws StripeException {
+
         Installment installment = installmentRepository.findById(installmentId)
                 .orElseThrow(() -> new InstallmentNotFoundException("Installment not found."));
 
         validateInstallment(installment);
         validatePayable(installment);
 
-        Payment payment = createPendingPayment(installment);
+        Payment payment = createPendingPayment(installment, paymentGateway.getPaymentMethod());
 
-        CheckoutSessionResponse response =
-                paymentGateway.createCheckoutSession(
-                        payment.getId(),
-                        payment.getAmount());
+        CheckoutSessionResponse response = paymentGateway.createCheckoutSession(payment.getId(), payment.getAmount());
 
         payment.setStripeSessionId(response.getSessionId());
-
         paymentRepository.save(payment);
+
+        if ("LOCAL".equals(response.getSessionId())) {
+            markPaymentCompleted(payment, "LOCAL");
+        }
 
         return response;
     }
@@ -94,9 +95,13 @@ public class PaymentService {
             return;
         }
 
+        markPaymentCompleted(payment, session.getPaymentIntent());
+    }
+
+    private void markPaymentCompleted(Payment payment, String transactionType) {
         payment.setStatus(PaymentStatus.SUCCESS);
         payment.setPaidAt(LocalDateTime.now());
-        payment.setTransactionReference(session.getPaymentIntent());
+        payment.setTransactionReference(transactionType);
         paymentRepository.save(payment);
 
         Installment installment = payment.getInstallment();
@@ -105,10 +110,9 @@ public class PaymentService {
         installmentRepository.save(installment);
 
         LoanAccount loanAccount = installment.getLoanAccount();
+
         loanAccount.setPaidInstallments(loanAccount.getPaidInstallments() + 1);
-        loanAccount.setRemainingBalance(
-                loanAccount.getRemainingBalance().subtract(payment.getAmount())
-        );
+        loanAccount.setRemainingBalance(loanAccount.getRemainingBalance().subtract(payment.getAmount()));
 
         if (loanAccount.getPaidInstallments().equals(loanAccount.getPeriodMonths())) {
             loanAccount.setStatus(LoanStatus.CLOSED);
@@ -137,12 +141,12 @@ public class PaymentService {
         }
     }
 
-    private Payment createPendingPayment(Installment installment) {
+    private Payment createPendingPayment(Installment installment, PaymentMethod paymentMethod) {
 
         Payment payment = Payment.builder()
                 .installment(installment)
                 .amount(installment.getAmount())
-                .paymentMethod(PaymentMethod.STRIPE)
+                .paymentMethod(paymentMethod)
                 .status(PaymentStatus.PENDING)
                 .createdAt(LocalDateTime.now())
                 .build();

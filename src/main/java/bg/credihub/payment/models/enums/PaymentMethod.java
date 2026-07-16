@@ -1,5 +1,5 @@
 package bg.credihub.payment.models.enums;
 
 public enum PaymentMethod {
-    STRIPE
+    STRIPE, LOCAL
 }

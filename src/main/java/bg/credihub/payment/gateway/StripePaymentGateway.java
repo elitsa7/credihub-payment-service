@@ -1,15 +1,18 @@
 package bg.credihub.payment.gateway;
 
 import bg.credihub.payment.models.dtos.CheckoutSessionResponse;
+import bg.credihub.payment.models.enums.PaymentMethod;
 import com.stripe.exception.StripeException;
 import com.stripe.model.checkout.Session;
 import com.stripe.param.checkout.SessionCreateParams;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 @Component
+@Profile("prod")
 public class StripePaymentGateway implements PaymentGateway {
     @Value("${credihub.base-url}")
     private String credihubBaseUrl;
@@ -41,5 +44,10 @@ public class StripePaymentGateway implements PaymentGateway {
                 .sessionId(session.getId())
                 .checkoutUrl(session.getUrl())
                 .build();
+    }
+
+    @Override
+    public PaymentMethod getPaymentMethod() {
+        return PaymentMethod.STRIPE;
     }
 }
